@@ -103,6 +103,105 @@ func (r *Float64RingBuffer) Last(n int) []float64 {
 	return r.Slice(start, r.Length)
 }
 
+type IntRingBuffer struct {
+	sync.Mutex
+	Buffer   []int
+	Length   int
+	Capacity int
+	Tail     int
+}
+
+func NewIntRingBuffer(capacity int) *IntRingBuffer {
+	return &IntRingBuffer{
+		Buffer:   make([]int, capacity, capacity),
+		Length:   0,
+		Capacity: capacity,
+		Tail:     0,
+	}
+}
+
+func (r *IntRingBuffer) Values() []int {
+	return r.Buffer
+}
+func (r *IntRingBuffer) Reset() {
+	r.Lock()
+	defer r.Unlock()
+	r.Tail = 0
+	r.Length = 0
+}
+func (r *IntRingBuffer) Len() int {
+	return r.Length
+}
+
+func (r *IntRingBuffer) BufCapacity() int {
+	return r.Capacity
+}
+
+func (r *IntRingBuffer) Add(v int) {
+	r.Lock()
+	if r.Length < r.Capacity {
+		r.Length += 1
+	}
+	r.Buffer[r.Tail] = v
+	r.Tail = (r.Tail + 1) % r.Capacity
+	r.Unlock()
+}
+
+func (r *IntRingBuffer) Slice(i, j int) []int {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.Length < r.Capacity {
+		if r.Length < j {
+			j = r.Length
+		}
+		return r.Buffer[i:j]
+	}
+	s := append(r.Buffer[r.Tail:r.Capacity], r.Buffer[:r.Tail]...)
+	return s[i:j]
+}
+
+func (r *IntRingBuffer) Position(i, j int) []int {
+	r.Lock()
+	defer r.Unlock()
+	// end exceeds length
+	if j > r.Length {
+		j = r.Length
+	}
+	// i exceeds length
+	if i > r.Length {
+		i = 0
+		j = r.Length
+	}
+	// start is less than 0
+	if i < 0 {
+		i = 0
+	}
+	// end is less than 0
+	if j < 0 {
+		i = 0
+		j = r.Length
+	}
+	if r.Length < r.Capacity {
+		if r.Length < j {
+			j = r.Length
+		}
+		return r.Buffer[i:j]
+	}
+	s := append(r.Buffer[r.Tail:r.Capacity], r.Buffer[:r.Tail]...)
+	return s[i:j]
+}
+
+func (r *IntRingBuffer) Last(n int) []int {
+	r.Lock()
+	start := r.Length - n
+	if start < 0 {
+		start = 0
+	}
+	r.Unlock()
+	return r.Slice(start, r.Length)
+}
+
 type StringRingBuffer struct {
 	sync.Mutex
 	Buffer   []string
